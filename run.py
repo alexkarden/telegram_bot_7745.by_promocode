@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import telebot
 from telebot import types
 
-bot = telebot.TeleBot('BOT-TOKEN')
+bot = telebot.TeleBot('7601103197:AAHNOqqOKKL9mAJ9x5diByZNRckt5q35Abo')
 
 
 def get_kod():
@@ -11,14 +11,18 @@ def get_kod():
     response = requests.get(url)
     soup = BeautifulSoup(response.text, "html.parser")
     items = soup.find('table', class_="table table-bordered adaptive_table")
-    list=[]
-    for item in items.find_all('tr'):
-        kods = ()
-        if item != None:
-            for item2 in item.find_all('td'):
-                if item2 != None:
-                    kods += (item2.text.replace('\n',''),)
-            list.append(kods)
+    if items != None:
+        list=[]
+        for item in items.find_all('tr'):
+            kods = ()
+            if item != None:
+                for item2 in item.find_all('td'):
+                    if item2 != None:
+                        if item2.find('a') != None:
+                            link2='http://7745.by'+item2.find('a').get('href')
+                            kods += (link2,)
+                    kods += (item2.text.replace('\n', ''),)
+                list.append(kods)
     list.pop(0)
     return list
 
@@ -37,7 +41,8 @@ def start(message):
     markup.add(btn01)
     bot.send_message(message.from_user.id, '👋 <b> Добро пожаловать! </b> \n  Бот по запросу ищет промокоды 7745:', parse_mode='html',reply_markup=markup)
     for kod in get_kod():
-        bot.send_message(message.from_user.id, f'Промокод: <b>{kod[1]}</b> действует до {kod[0]} на {kod[2]} ({kod[3]})',
+        bot.send_message(message.from_user.id,
+                         f'Промокод: <b>{kod[1]}</b> действует до {kod[0]} на <a href="{kod[2]}">{kod[3]}</a> - {kod[4]}',
                          parse_mode='html')
 
 
@@ -52,7 +57,7 @@ def get_text_messages(message):
     if message.text == 'Получить промокоды 7745':
         for kod in get_kod():
             bot.send_message(message.from_user.id,
-                             f'Промокод: <b>{kod[1]}</b> действует до {kod[0]} на {kod[2]} ({kod[3]})',
+                             f'Промокод: <b>{kod[1]}</b> действует до {kod[0]} на <a href="{kod[2]}">{kod[3]}</a> - {kod[4]}',
                              parse_mode='html')
 
 
