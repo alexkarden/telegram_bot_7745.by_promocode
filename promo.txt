@@ -1,0 +1,1 @@
+[('31.12.2025', 'GREEN', 'http://7745.by/about/brands/greenworks', 'GREENWORKS', 'скидка 5%')]
