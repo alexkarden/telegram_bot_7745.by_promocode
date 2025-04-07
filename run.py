@@ -1,21 +1,27 @@
 import asyncio
 import logging
-import apsсhed
 from aiogram import Bot, Dispatcher
 from config import TOKEN, CHECKINTERVAL
 from handlers import router
-from scripts_db import create_db
+from scripts_db import init_db,  add_promokod_db
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apsсhed import check_promo,check_and_add_promo
+from scripts import get_kod
+import time
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
 async def main():
-    print(CHECKINTERVAL)
-    await create_db()
+    curent_time = int(time.time())
+    await init_db()
+    for kod in await get_kod():
+        await  add_promokod_db(kod[1], kod[0], kod[2], kod[3], kod[4],curent_time)
     scheduler = AsyncIOScheduler(timezone="Europe/Minsk")
-    scheduler.add_job(apsсhed.check_promo, trigger='interval', minutes=CHECKINTERVAL,
+    scheduler.add_job(check_promo, trigger='interval', minutes=CHECKINTERVAL,
                        kwargs={'bot': bot})
+    scheduler.add_job(check_and_add_promo, trigger='interval', minutes=CHECKINTERVAL)
+
     scheduler.start()
     dp.include_router(router)
     await dp.start_polling(bot)
