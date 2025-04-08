@@ -17,7 +17,7 @@ async def init_db():
             await db.execute("CREATE TABLE IF NOT EXISTS promokods (id INTEGER PRIMARY KEY, promokod TEXT, expiration_date INTEGER , link TEXT, link_caption TEXT, description TEXT, time_of_add INTEGER, new_promokod INTEGER)")
             await db.commit()
     except aiosqlite.Error as e:
-        print(f"Ошибка при инициализации базы данных: {e}")
+        logging.error(f"Ошибка при инициализации базы данных: {e}")
 
 # Добавление пользователя в базу данных
 async def add_user_db(user_id, first_name, last_name, username):
@@ -30,26 +30,42 @@ async def add_user_db(user_id, first_name, last_name, username):
                 if result is not None:
                     # Если пользователь существует, можно обновить его данные
                     await db.execute("UPDATE users SET first_name = ?, last_name = ?, username = ?, user_added = ? WHERE user_id = ? ", (first_name, last_name, username, 1, user_id))
-                    print(f"Пользователь с ID {user_id} обновлен в базе данных.")
+                    logging.info(f"Пользователь с ID {user_id} обновлен в базе данных.")
                 else:
                     # Если не существует, добавляем нового пользователя
                     await db.execute("INSERT INTO users (user_id, first_name, last_name, username, user_added, user_subscribed, user_blocked, time_of_add) VALUES (?, ?, ?, ?, ?, ?, ?,?)", (user_id, first_name, last_name, username, 1, 0, 0,time_of_add))
-                    print(f"Пользователь с ID {user_id} добавлен в базу данных.")
+                    logging.info(f"Пользователь с ID {user_id} добавлен в базу данных.")
                 await db.commit()
     except aiosqlite.Error as e:
-        print(f"Ошибка при добавлении пользователя в базу данных: {e}")
+        logging.error(f"Ошибка при добавлении пользователя в базу данных: {e}")
+    except Exception as e:
+        logging.error(f"Произошла неожиданная ошибка: {e}")
 
 # Обработка подписки
 async def subscribed_user_db(user_id):
-    async with aiosqlite.connect(DATABASE_NAME) as db:
-        await db.execute("UPDATE users SET user_subscribed = 1 WHERE user_id = ?", (user_id,))
-        await db.commit()
+    try:
+        async with aiosqlite.connect(DATABASE_NAME) as db:
+            async with db.execute("UPDATE users SET user_subscribed = 1 WHERE user_id = ?", (user_id,)) as cursor:
+                await db.commit()
+                if cursor.rowcount == 0:
+                    logging.warning(f"Пользователь с ID {user_id} не найден для подписки.")
+    except aiosqlite.Error as e:
+        logging.error(f"Ошибка базы данных при обработке подписки пользователя {user_id}: {e}")
+    except Exception as e:
+        logging.error(f"Произошла неожиданная ошибка обработки подписки пользователя {user_id}: {e}")
 
 # Обработка отписки
 async def unsubscribed_user_db(user_id):
-    async with aiosqlite.connect(DATABASE_NAME) as db:
-        await db.execute("UPDATE users SET user_subscribed = 0 WHERE user_id = ?", (user_id,))
-        await db.commit()
+    try:
+        async with aiosqlite.connect(DATABASE_NAME) as db:
+            async with db.execute("UPDATE users SET user_subscribed = 0 WHERE user_id = ?", (user_id,)) as cursor:
+                await db.commit()
+                if cursor.rowcount == 0:
+                    logging.warning(f"Пользователь с ID {user_id} не найден для отписки.")
+    except aiosqlite.Error as e:
+        logging.error(f"Ошибка базы данных при обработке отписки пользователя {user_id}: {e}")
+    except Exception as e:
+        logging.error(f"Произошла неожиданная ошибка обработки отписки пользователя {user_id}: {e}")
 
 #Получение статуса подписки
 async def get_status_subscribed_user_db(user_id):
@@ -58,12 +74,13 @@ async def get_status_subscribed_user_db(user_id):
             async with db.execute("SELECT user_subscribed FROM users WHERE user_id = ?", (user_id,)) as cursor:
                 result = await cursor.fetchone()
                 if result is None:
-                    # Если пользователь не найден, можно вернуть None или выбросить исключение
+                    # Если пользователь не найден
+                    logging.info(f"Пользователь с ID {user_id} не найден.")
                     return None  # Пользователь не найден
-                return result[0]  # Возвращаем статус подписки (True/False)
+                return bool(result[0])  # Возвращаем статус подписки (True/False)
     except aiosqlite.Error as e:
         # Обработка ошибок базы данных
-        print(f"Ошибка доступа к базе данных: {e}")
+        logging.error(f"Ошибка доступа к базе данных при получении статуса подписки пользователя {user_id}: {e}")
         return None  # В случае ошибки также можем вернуть None
 
 
@@ -73,12 +90,14 @@ async def get_time_of_add_user_db(user_id):
         async with aiosqlite.connect(DATABASE_NAME) as db:
             async with db.execute("SELECT time_of_add FROM users WHERE user_id = ?", (user_id,)) as cursor:
                 result = await cursor.fetchone()
-                if result:
-                    print(result)
-                    return result  # Возвращаем время
+                if result is None:
+                    logging.info(f"Пользователь с ID {user_id} не найден, время регистрации отсутствует.")
+                    return None  # Если пользователь не найден или нет времени регистрации
+
+                return result[0]  # Возвращаем время
     except aiosqlite.Error as e:
         # Обработка ошибок базы данных
-        print(f"Ошибка доступа к базе данных: {e}")
+        logging.error(f"Ошибка доступа к базе данных при получении времени регистрации пользователя {user_id}: {e}")
         return None  # В случае ошибки также можем вернуть None
 
 # Получение списка пользователей для рассылки
@@ -86,12 +105,12 @@ async def get_list_subscribed_user_db():
     try:
         async with aiosqlite.connect(DATABASE_NAME) as db:
             async with db.execute("SELECT user_id FROM users WHERE user_subscribed = 1") as cursor:
-                list = await cursor.fetchall()  # Здесь должен быть await для получения результата
-                user_ids = [user[0] for user in list]
+                subscribed_users = await cursor.fetchall()  # Здесь должен быть await для получения результата
+                user_ids = [user[0] for user in subscribed_users]
                 return user_ids
     except aiosqlite.Error as e:
         # Логируем ошибку или обрабатываем её как-то иначе
-        print(f"Произошла ошибка при получении списка пользователей: {e}")
+        logging.error(f"Произошла ошибка при получении списка пользователей: {e}")
         return []  # Возвращаем пустой список в случае ошибки
 
 
@@ -121,6 +140,7 @@ async def get_promokod_db(curent_time):
             result = await cursor.fetchall()
             if result is not None:
                 # Если промокоды существуют, возвращаем
+
                 return result
             else:
                 # Если не существует,
@@ -139,9 +159,16 @@ async def set_old_promokod_db():
 
 
 # Извлечение промокодов появившехся позже регистрации пользователя
-async def set_old_promokod_db(time):
-    async with aiosqlite.connect(DATABASE_NAME) as db:
-        async with db.execute("SELECT * FROM promokods WHERE time_of_add >=?", (time)) as cursor:
-            result = await cursor.fetchall()
-            if result:
-                return result
+async def get_old_promokod_db(time):
+    try:
+        async with aiosqlite.connect(DATABASE_NAME) as db:
+            async with db.execute("SELECT * FROM promokods WHERE time_of_add >=?", (time,)) as cursor:
+                result = await cursor.fetchall()
+                if result:
+                    return result
+                else:
+                    x=[0]
+                    return x
+    except aiosqlite.Error as e:
+        logging.error(f"Ошибка работы с базой данных: {e}")
+        return []  # Возвращаем пустой список в случае ошибки

@@ -5,7 +5,7 @@ from aiogram.types import Message
 from keyboards import create_main_keyboard, create_dynamic_keyboard
 import time
 from scripts import convert_date_to_str
-from scripts_db import add_user_db, subscribed_user_db, unsubscribed_user_db, get_promokod_db, set_old_promokod_db, get_time_of_add_user_db
+from scripts_db import add_user_db, subscribed_user_db, unsubscribed_user_db, get_promokod_db, set_old_promokod_db, get_time_of_add_user_db, get_old_promokod_db
 
 
 
@@ -55,8 +55,16 @@ async def all_message(message: Message):
         await message.answer('<b>Алексей\n<a href="tel:+375297047262">+375-29-704-72-62</a></b>', parse_mode='html')
     elif text == 'История Ваших промокодов':
         x = 'История ваших промокодов:\n'
-        for kod in await set_old_promokod_db(await get_time_of_add_user_db(message.from_user.id)):
-            x += f'Промокод: <b>{kod[1]}</b> действует до {convert_date_to_str(kod[2])} на <a href="{kod[3]}">{kod[4]}</a> - {kod[5]}\n'
+        for kod in await get_old_promokod_db(await get_time_of_add_user_db(message.from_user.id)):
+
+            if kod == 0:
+                x = 'Пока нет промокодов'
+
+
+            else:
+
+                x += f'Промокод: <b>{kod[1]}</b> действует до {convert_date_to_str(kod[2])} на <a href="{kod[3]}">{kod[4]}</a> - {kod[5]}\n'
+
 
         await message.answer( f'{x}', reply_markup=create_main_keyboard(), parse_mode='html')
 
