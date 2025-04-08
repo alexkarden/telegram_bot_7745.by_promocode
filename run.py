@@ -20,7 +20,7 @@ async def main():
     scheduler = AsyncIOScheduler(timezone="Europe/Minsk")
     scheduler.add_job(check_promo, trigger='interval', minutes=CHECKINTERVAL,
                        kwargs={'bot': bot})
-    scheduler.add_job(check_and_add_promo, trigger='interval', minutes=CHECKINTERVAL)
+    scheduler.add_job(check_and_add_promo, trigger='interval', minutes=CHECKINTERVAL+(CHECKINTERVAL/2))
 
     scheduler.start()
     dp.include_router(router)
@@ -41,4 +41,6 @@ if __name__ == '__main__':
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print('Exit')
+        logging.info('Exit')
+    except Exception as e:
+        logging.error(f'Произошла ошибка: {e}')
