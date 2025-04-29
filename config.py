@@ -6,5 +6,6 @@ URL7745='https://7745.by/articles/ispolzovanie-promokoda'
 CHECKINTERVAL=1
 # Список администраторов
 ADMINLIST=[]
+
 # Название базы данных
 DATABASE_NAME = 'data.db'
